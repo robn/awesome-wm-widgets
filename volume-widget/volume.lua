@@ -17,6 +17,7 @@ local dpi = require('beautiful').xresources.apply_dpi
 
 local PATH_TO_ICONS = "/usr/share/icons/Arc/status/symbolic/"
 local volume_icon_name="audio-volume-high-symbolic"
+local volume_icon_opacity = 1
 local GET_VOLUME_CMD = 'amixer sget Master'
 
 local volume = {device = '', display_notification = false, notification = nil, delta = 5}
@@ -41,7 +42,8 @@ end
 local function parse_output(stdout)
     local level = string.match(stdout, "(%d?%d?%d)%%")
     if stdout:find("%[off%]") then
-        volume_icon_name="audio-volume-muted-symbolic"
+        volume_icon_name="audio-volume-high-symbolic"
+        volume_icon_opacity = 0.2
         return level.."% <span color=\"red\"><b>Mute</b></span>"
     end
     level = tonumber(string.format("% 3d", level))
@@ -55,6 +57,7 @@ local function parse_output(stdout)
     else
         volume_icon_name="audio-volume-high-symbolic"
     end
+    volume_icon_opacity = 1
     return level.."%"
 end
 
@@ -64,6 +67,7 @@ end
 local function update_graphic(widget, stdout, _, _, _)
     local txt = parse_output(stdout)
     widget.image = volume.path_to_icons .. volume_icon_name .. ".svg"
+    widget:set_opacity(volume_icon_opacity)
     if volume.display_notification then
         volume.notification.iconbox.image = volume.path_to_icons .. volume_icon_name .. ".svg"
         naughty.replace_text(volume.notification, "Volume", txt)
