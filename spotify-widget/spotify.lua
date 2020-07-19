@@ -13,13 +13,14 @@ local wibox = require("wibox")
 local watch = require("awful.widget.watch")
 local naughty = require("naughty")
 
-local GET_SPOTIFY_STATUS_CMD = 'sp status'
-local GET_CURRENT_SONG_CMD = 'sp current'
-
 local function ellipsize(text, length)
     return (text:len() > length and length > 0)
         and text:sub(0, length - 3) .. '...'
         or text
+end
+
+local function spotify_cmd(cmd)
+  awful.spawn("dbus-send --type=method_call --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player." .. cmd)
 end
 
 local spotify_widget = {}
@@ -53,9 +54,10 @@ local function worker(args)
         {
             id = 'titlew',
             font = font,
-            widget = wibox.widget.textbox
+            widget = wibox.widget.textbox,
         },
         layout = wibox.layout.align.horizontal,
+        visible = false,
         set_status = function(self, is_playing)
             self.icon.image = (is_playing and play_icon or pause_icon)
             if dim_when_paused then
@@ -71,43 +73,53 @@ local function worker(args)
         set_text = function(self, artist, song)
             local artist_to_display = ellipsize(artist, max_length)
             if self.artistw.text ~= artist_to_display then
-                self.artistw.text = artist_to_display
+                self.artistw.text = " " .. artist_to_display
             end
             local title_to_display = ellipsize(song, max_length)
             if self.titlew.text ~= title_to_display then
-                self.titlew.text = title_to_display
+                self.titlew.text = title_to_display .. " "
             end
         end
     }
 
-    local update_widget_icon = function(widget, stdout, _, _, _)
-        stdout = string.gsub(stdout, "\n", "")
-        widget:set_status(stdout == 'Playing' and true or false)
+    local update_widget_icon = function(widget, status)
+        widget:set_status(status == 'Playing' and true or false)
+        widget:set_visible(true)
     end
 
-    local update_widget_text = function(widget, stdout, _, _, _)
-        if string.find(stdout, 'Error: Spotify is not running.') ~= nil then
-            widget:set_text('','')
-            widget:set_visible(false)
-            return
-        end
+    local update_widget_text = function(widget, metadata)
+        cur_artist = metadata.albumArtist
+        cur_title = metadata.title
+        cur_album = metadata.album
 
-        local escaped = string.gsub(stdout, "&", '&amp;')
-        local album, album_artist, artist, title =
-            string.match(escaped, 'Album%s*(.*)\nAlbumArtist%s*(.*)\nArtist%s*(.*)\nTitle%s*(.*)\n')
-
-        if album ~= nil and title ~=nil and artist ~= nil then
-            cur_artist = artist
-            cur_title = title
-            cur_album = album
-
-            widget:set_text(artist, title)
-            widget:set_visible(true)
-        end
+        widget:set_text(cur_artist, cur_title)
+        widget:set_visible(true)
     end
 
-    watch(GET_SPOTIFY_STATUS_CMD, 1, update_widget_icon, spotify_widget)
-    watch(GET_CURRENT_SONG_CMD, 1, update_widget_text, spotify_widget)
+    dbus.add_match('session', "path='/org/mpris/MediaPlayer2',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'")
+    dbus.connect_signal('org.freedesktop.DBus.Properties', function(metadata, name, payload)
+      if name ~= 'org.mpris.MediaPlayer2.Player' then
+        return
+      end
+
+      if payload.PlaybackStatus then
+        update_widget_icon(spotify_widget, payload.PlaybackStatus)
+      end
+
+      if payload.Metadata then
+        current_metadata = {}
+        for k, v in pairs(payload.Metadata) do
+          if string.sub(k, 1, 6) == 'xesam:' then
+            if type(v) == 'table' then
+              v = table.concat(v, ' & ')
+            end
+            current_metadata[string.sub(k, 7)] = v
+          end
+        end
+      end
+
+      update_widget_text(spotify_widget, current_metadata)
+    end)
 
     --- Adds mouse controls to the widget:
     --  - left click - play/pause
@@ -115,15 +127,12 @@ local function worker(args)
     --  - scroll down - play previous song
     spotify_widget:connect_signal("button::press", function(_, _, _, button)
         if (button == 1) then
-            awful.spawn("sp play", false)      -- left click
+            spotify_cmd("PlayPause")      -- left click
         elseif (button == 4) then
-            awful.spawn("sp next", false)  -- scroll up
+            spotify_cmd("Next")           -- scroll up
         elseif (button == 5) then
-            awful.spawn("sp prev", false)  -- scroll down
+            spotify_cmd("Previous")       -- scroll down
         end
-        awful.spawn.easy_async(GET_SPOTIFY_STATUS_CMD, function(stdout, stderr, exitreason, exitcode)
-            update_widget_icon(spotify_widget, stdout, stderr, exitreason, exitcode)
-        end)
     end)
 
 
