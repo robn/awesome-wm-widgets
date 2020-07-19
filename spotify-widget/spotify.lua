@@ -73,11 +73,11 @@ local function worker(args)
         set_text = function(self, artist, song)
             local artist_to_display = ellipsize(artist, max_length)
             if self.artistw.text ~= artist_to_display then
-                self.artistw.text = " " .. artist_to_display
+                self.artistw.text = artist_to_display
             end
             local title_to_display = ellipsize(song, max_length)
             if self.titlew.text ~= title_to_display then
-                self.titlew.text = title_to_display .. " "
+                self.titlew.text = title_to_display
             end
         end
     }
