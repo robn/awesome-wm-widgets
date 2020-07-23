@@ -71,27 +71,12 @@ local function worker(args)
     }
     -- Popup with battery info
     -- One way of creating a pop-up notification - naughty.notify
-    local notification
     local function show_battery_status(batteryType)
-        awful.spawn.easy_async([[bash -c 'acpi']],
-        function(stdout, _, _, _)
-            naughty.destroy(notification)
-            notification = naughty.notify{
-                text =  stdout,
-                title = "Battery status",
-                icon = path_to_icons .. batteryType .. ".svg",
-                icon_size = dpi(16),
-                position = position,
-                timeout = 5, hover_timeout = 0.5,
-                width = 200,
-                screen = mouse.screen
-            }
-        end
-        )
+        awful.spawn.easy_async([[bash -c 'acpi']])
     end
 
     -- Alternative to naughty.notify - tooltip. You can compare both and choose the preferred one
-    --battery_popup = awful.tooltip({objects = {battery_widget}})
+    battery_popup = awful.tooltip({objects = {battery_widget}})
 
     -- To use colors from beautiful theme put
     -- following lines in rc.lua before require("battery"):
@@ -174,7 +159,7 @@ local function worker(args)
         widget.icon:set_image(path_to_icons .. batteryType .. ".svg")
 
         -- Update popup text
-        -- battery_popup.text = string.gsub(stdout, "\n$", "")
+        battery_popup.text = string.gsub(stdout, "\n$", "")
     end,
     icon_widget)
 
