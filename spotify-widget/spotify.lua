@@ -88,9 +88,9 @@ local function worker(args)
     end
 
     local update_widget_text = function(widget, metadata)
-        cur_artist = metadata.albumArtist
-        cur_title = metadata.title
-        cur_album = metadata.album
+        cur_artist = metadata['xesam:albumArtist']
+        cur_title = metadata['xesam:title']
+        cur_album = metadata['xesam:album']
 
         widget:set_text(cur_artist, cur_title)
         widget:set_visible(true)
@@ -109,16 +109,17 @@ local function worker(args)
       if payload.Metadata then
         current_metadata = {}
         for k, v in pairs(payload.Metadata) do
-          if string.sub(k, 1, 6) == 'xesam:' then
-            if type(v) == 'table' then
-              v = table.concat(v, ' & ')
-            end
-            current_metadata[string.sub(k, 7)] = v
+          if type(v) == 'table' then
+            v = table.concat(v, ' & ')
           end
+          current_metadata[k] = v
+        end
+
+      --local mute, level = string.match(stdout, "(%d+)\n(%d+)")
+        if current_metadata['mpris:trackid'] and string.find(current_metadata['mpris:trackid'], "^spotify:") then
+          update_widget_text(spotify_widget, current_metadata)
         end
       end
-
-      update_widget_text(spotify_widget, current_metadata)
     end)
 
     --- Adds mouse controls to the widget:
