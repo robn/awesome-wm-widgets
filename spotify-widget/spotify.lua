@@ -37,6 +37,7 @@ local function worker(args)
     local max_length = args.max_length or 15
     local show_tooltip = args.show_tooltip == nil and false or args.show_tooltip
 
+    local cur_status = false
     local cur_artist = ''
     local cur_title = ''
     local cur_album = ''
@@ -83,7 +84,8 @@ local function worker(args)
     }
 
     local update_widget_icon = function(widget, status)
-        widget:set_status(status == 'Playing' and true or false)
+        cur_status = status == 'Playing' and true or false
+        widget:set_status(cur_status)
         widget:set_visible(true)
     end
 
@@ -151,6 +153,30 @@ local function worker(args)
                 .. '\n<b>Song</b>: ' .. cur_title
         end)
     end
+
+    awesome.connect_signal('exit', function(restarting)
+      if not restarting then return end
+      local out =
+        (cur_status and '1' or '0') .. '\n' ..
+        cur_album .. '\n' ..
+        cur_artist .. '\n' ..
+        cur_title .. '\n'
+      local file = io.open('/tmp/awesome-spotify-widget.txt', 'w')
+      file:write(out)
+      file:close()
+    end)
+
+    local file = io.open('/tmp/awesome-spotify-widget.txt', 'r');
+    if file then
+      cur_status = file:read() == '1' and true or false
+      cur_album = file:read()
+      cur_artist = file:read()
+      cur_title = file:read()
+      spotify_widget:set_status(cur_status)
+      spotify_widget:set_text(cur_artist, cur_title)
+      spotify_widget:set_visible(true)
+    end
+    os.remove('/tmp/awesome-spotify-widget.txt')
 
     return spotify_widget
 
