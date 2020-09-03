@@ -126,15 +126,15 @@ local function worker(args)
 
     --- Adds mouse controls to the widget:
     --  - left click - play/pause
-    --  - scroll up - play next song
-    --  - scroll down - play previous song
+    --  - scroll down - play next song
+    --  - scroll up - play previous song
     spotify_widget:connect_signal("button::press", function(_, _, _, button)
         if (button == 1) then
             spotify_cmd("PlayPause")      -- left click
         elseif (button == 4) then
-            spotify_cmd("Next")           -- scroll up
+            spotify_cmd("Previous")       -- scroll up
         elseif (button == 5) then
-            spotify_cmd("Previous")       -- scroll down
+            spotify_cmd("Next")           -- scroll down
         end
     end)
 
